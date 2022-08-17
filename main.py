@@ -8,8 +8,8 @@ def parse_args():
     parser.add_argument('--questions', type=int, action='append')
     parser.add_argument('--types', type=str, action='append')
     parser.add_argument('--k', type=int, default=5)
-    parser.add_argument('--datadir', type=str, default='./data/polyvore_outfits/')
-    parser.add_argument('--outputdir', type=str, default='./output/')
+    parser.add_argument('--datadir', type=str, default='data/polyvore_outfits')
+    parser.add_argument('--outputdir', type=str, default='output')
     parser.add_argument('--is_save', type=bool, default=False)
 
     parser.add_argument('--new_product', type=int, default=None)
