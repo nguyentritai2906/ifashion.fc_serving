@@ -1,6 +1,4 @@
 import argparse
-from PIL import Image 
-from torchvision import transforms as T
 from processing_serving.grpc_recommend_api import preprocess_image, grpc_infer
 from preprocessing import main
 
