@@ -125,11 +125,11 @@ def main(K, datadir, outputdir, questions, types, is_save):
     if is_save:
         q_output_path = os.path.join(output_path, f'{q_index}')
         os.makedirs(q_output_path, exist_ok=True)
-        save_sprite(os.path.join(q_output_path, 'i_sprite.jpg'), embeddings_metadata, question_indexes, is_save)
+        save_sprite(os.path.join(q_output_path, 'i_sprite.jpg'), embeddings_metadata, question_indexes)
 
     if is_save:
         c_output_path = os.path.join(output_path, f'{q_index}')
         os.makedirs(c_output_path, exist_ok=True)
-        save_sprite(os.path.join(c_output_path, 'o_sprite.jpg'), embeddings_metadata, candidate_indexes, is_save)
+        save_sprite(os.path.join(c_output_path, 'o_sprite.jpg'), embeddings_metadata, candidate_indexes)
 
     return question_indexes, candidate_indexes
