@@ -1,5 +1,7 @@
 import argparse
-from processing_serving.grpc_recommend_api import preprocess_image, grpc_infer
+from PIL import Image 
+from torchvision import transforms as T
+from grpc_recommend_api import preprocess_image, grpc_infer
 from preprocessing import main
 
 
@@ -12,7 +14,7 @@ def parse_args():
     parser.add_argument('--outputdir', type=str, default='output')
     parser.add_argument('--is_save', type=bool, default=False)
 
-    parser.add_argument('--new_product', type=int, default=None)
+    parser.add_argument('--new_product', type=str, default=None)
     parser.add_argument('--new_type', type=str, default=None)
     args = parser.parse_args()
     return args
@@ -23,7 +25,7 @@ if __name__=="__main__":
     if args.new_product:
         assert args.new_type is not None, 'Please add category for new product!'
         # Image input
-        input_image = preprocess_image(args.image_path)        
+        input_image = preprocess_image(args.new_product)        
         output_embedding = grpc_infer(input_image)
         print(output_embedding)
         # INSERT NEW PRODUCT TO DATABASE #
@@ -31,6 +33,3 @@ if __name__=="__main__":
     # Get answers
     question_indexes, candidate_indexes = main(args.k, args.datadir, args.outputdir, args.questions, args.types, args.is_save)
     print(candidate_indexes)
-
-
-    
