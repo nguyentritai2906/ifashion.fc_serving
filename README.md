@@ -13,7 +13,7 @@ sudo apt-get update && sudo apt-get install tensorflow-model-server
 # or sudo apt-get upgrade tensorflow-model-server
 ```
 ## Download data
-* `data_demo`: https://drive.google.com/file/d/1-dLro6RedGuEOZmH6kRZKc5g5Bx1XGjj/view?usp=sharing
+* `data_demo`: https://drive.google.com/file/d/1qFVAAo_Ws5c65GYEXFtEPYb-PAWP8tsa/view?usp=sharing
 ## Open port:
 ```
 tensorflow_model_server --port=8500 --rest_api_port=8501 --model_name=fashion-compatibility --model_base_path="/home/queen/Documents/IFashion/visual-compatibility/fc_serving/fashion_batch8/serving/" --enable_batching=true --batching_parameters_file="/home/queen/Documents/IFashion/visual-compatibility/fc_serving/fashion_batch8/batching_parameters.txt"
