@@ -13,5 +13,5 @@ def parse_args():
 if __name__=="__main__":
     args = parse_args()       
     # Get answers
-    candidate_indexes = preprocessing(args.qid, args.ans_type, args.k)
+    candidate_indexes = preprocessing(args.questions, args.ans_type, args.k)
     print(candidate_indexes)
