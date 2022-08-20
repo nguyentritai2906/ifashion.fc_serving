@@ -43,9 +43,9 @@ def get_embedding(cur, conn, qid, typespace):
 
 def find_answer_embedding(cur, conn, input_embedding, index_typespace, k):
     # Insert clothes embedding
-    sql = """SELECT iid FROM outfit_recom_emb_%s ORDER BY outfit_recom_emb <-> %s LIMIT %s;"""
+    sql = """SELECT iid, outfit_recom_emb, cube_distance(outfit_recom_emb, %s) FROM outfit_recom_emb_%s ORDER BY outfit_recom_emb <-> %s LIMIT %s;"""
     # Excute sql
-    cur.execute(sql, (index_typespace, input_embedding, k))  
+    cur.execute(sql, (input_embedding, index_typespace, input_embedding, k))  
     result = cur.fetchall() 
     conn.commit() 
-    return [r[0] for r in result]
+    return result
