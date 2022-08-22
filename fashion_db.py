@@ -49,3 +49,11 @@ def find_answer_embedding(cur, conn, input_embedding, index_typespace, k):
     result = cur.fetchall() 
     conn.commit() 
     return result
+
+
+def get_pid(cur, conn, iid):
+    sql = """SELECT pid FROM image WHERE id=%s"""
+    cur.execute(sql, [iid])
+    pid = cur.fetchone[0]
+    conn.commit()
+    return pid

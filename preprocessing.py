@@ -23,6 +23,13 @@ def preprocessing(questions, ans_type, K):
 
     answers = sorted(candidates, key=lambda tup: tup[2])[:K]
 
+    results = []
+    for ans in answers:
+        iid = ans[0]
+        pid = get_pid(cur, conn, iid)
+        result = (pid, ans[1], ans[2])
+        results.append(result)
+
     cur.close()
 
-    return answers
+    return results
