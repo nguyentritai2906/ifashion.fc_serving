@@ -37,7 +37,7 @@ def grpc_infer(imgs):
     outputs = []
     for out in outputs_tensor_proto.float_val:
         outputs.append(out)
-    print(outputs)
+    # print(outputs)
     return outputs
 
 
