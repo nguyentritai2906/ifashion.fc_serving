@@ -1,0 +1,9 @@
+FROM base_tf_serve
+
+EXPOSE 8500
+COPY . .
+RUN chmod +x entry.sh
+SHELL ["/bin/bash", "-c"]
+RUN source /venv/bin/activate
+
+ENTRYPOINT ["./entry.sh"]

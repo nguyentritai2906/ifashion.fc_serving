@@ -1,0 +1,25 @@
+FROM continuumio/miniconda3 AS build
+
+COPY environment.yml .
+RUN conda env create -f environment.yml
+RUN conda install -c conda-forge conda-pack
+RUN conda-pack -n test -o /tmp/env.tar && \
+  mkdir /venv && cd /venv && tar xf /tmp/env.tar && \
+  rm /tmp/env.tar
+RUN /venv/bin/conda-unpack
+
+FROM tensorflow/serving:latest-devel as build_image
+FROM ubuntu:18.04
+
+ARG TF_SERVING_VERSION_GIT_BRANCH=master
+ARG TF_SERVING_VERSION_GIT_COMMIT=head
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        ca-certificates screen ffmpeg libsm6 libxext6 iputils-ping \
+        && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
+
+# Install TF Serving pkg
+COPY --from=build_image /usr/local/bin/tensorflow_model_server /usr/bin/tensorflow_model_server
+COPY --from=build /venv /venv
