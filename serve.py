@@ -9,7 +9,7 @@ import requests
 from faust import App
 
 from grpc_recommend_api import grpc_infer, preprocess_image
-from query import query
+from query import generate_outfit, query
 
 app = App('outfit_app', broker='kafka', value_serializer='raw')
 logger = logging.getLogger('outfit_app')
@@ -21,6 +21,8 @@ insert_pipe_encoder = app.topic('insert_pipe_encoder')
 insert_pipe_insert = app.topic('insert_pipe_insert')
 outfit_query_in = app.topic('outfit_query_in')
 outfit_query_out = app.topic('outfit_query_out')
+outfit_generate_in = app.topic('outfit_generate_in')
+outfit_generate_out = app.topic('outfit_generate_out')
 
 # Handler for inserting to database
 conn = psycopg2.connect(database="ifashion",
@@ -67,6 +69,21 @@ async def query_pipe(stream):
             task = asyncio.create_task(
                 outfit_query_out.send(key=str(client_id),
                                       value=str(answer_pids).encode()))
+            tasks.append(task)
+            await asyncio.gather(*tasks)
+
+
+@app.agent(outfit_generate_in)
+async def generate_pipe(stream):
+    async for record in stream.take(BATCH_SIZE, within=TIMEOUT):
+        for value in record:
+            client_id, pid, k = ast.literal_eval(value.decode())
+            outfits = generate_outfit(pid, k)
+
+            tasks = []
+            task = asyncio.create_task(
+                outfit_generate_out.send(key=str(client_id),
+                                         value=str(outfits).encode()))
             tasks.append(task)
             await asyncio.gather(*tasks)
 

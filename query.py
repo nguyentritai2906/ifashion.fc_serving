@@ -1,5 +1,29 @@
 import psycopg2
 
+CAT_CONSTRAINT = {
+    12: [19, 18, 21, 22, 24, 26, 29, 31, 30],
+    13: [19, 18, 21, 22, 24, 26, 29, 31, 30],
+    14: [19, 18, 21, 22, 24, 26, 29, 31, 30],
+    15: [19, 18, 21, 22, 24, 26, 29, 31, 30],
+    16: [19, 18, 21, 22, 24, 26, 29, 31, 30],
+    17: [24, 29, 26, 25, 31, 33, 12, 13, 14, 15, 16],
+    18: [24, 29, 26, 25, 31, 33, 12, 13, 14, 15, 16],
+    19: [24, 26, 23, 31, 33],
+    20: [26, 23, 33],
+    21: [23, 26, 12, 13, 14, 15, 16],
+    22: [24, 29, 31, 30, 12, 13, 14, 15, 16],
+    23: [20, 19, 21, 33],
+    24: [19, 18, 21, 22, 12, 13, 14, 15, 16, 33],
+    25: [19, 18, 21, 22, 12, 13, 14, 15, 16, 33],
+    26: [20, 19, 18, 33],
+    27: [20, 19, 21, 18, 22, 12, 13, 14, 15, 16],
+    28: [20, 19, 21, 18, 22, 12, 13, 14, 15, 16],
+    29: [20, 19, 21, 18, 22, 12, 13, 14, 15, 16],
+    30: [20, 19, 21, 18, 12, 13, 14, 15, 16],
+    31: [19, 21, 18, 22, 12, 13, 14, 15, 16],
+    33: [20, 19, 18, 23],
+}
+
 
 def query(pids, remote_cids, K):
     # Connect to the PostgreSQL server
@@ -70,6 +94,113 @@ def query(pids, remote_cids, K):
     return results
 
 
+def generate_outfit(pid, k):
+    # Connect to the PostgreSQL server
+    global conn
+    global cur
+    conn = psycopg2.connect(database="ifashion",
+                            user="ifashion",
+                            host="db",
+                            port="5432")
+    # Create a cursor
+    cur = conn.cursor()
+
+    # Product embedding
+    emb_sql = """SELECT emb FROM image_search_emb INNER JOIN image ON image_search_emb.iid = image.id
+                  WHERE pid=%s"""
+    try:
+        emb = fetchone(emb_sql, (pid, ))[0]
+    except TypeError:
+        return [None]
+
+    # Category of product
+    cid_sql = """SELECT cid FROM product_category WHERE pid=%s;"""
+    cid = fetchone(cid_sql, (pid, ))[0]
+    # Parent category of product
+    parent_id_sql = """SELECT parent_id FROM category WHERE id=%s;"""
+    question_parent_cid = fetchone(parent_id_sql, (cid, ))[0]
+
+    # Same category products
+    sql = """Select pid from product_category where cid = %s;"""
+    search_pids = tuple(i[0] for i in fetchall(sql, [question_parent_cid]))
+    # Find similar product ids to replace input pid
+    sql = """SELECT pid FROM image_search_emb INNER JOIN image ON image_search_emb.iid = image.id
+            WHERE image.pid IN %s ORDER BY emb <-> %s LIMIT %s;"""
+    candidate_pids = tuple(x[0] for x in fetchall(sql, [search_pids, emb, k]))
+
+    # Parent ids
+    #categories = {'top': 5, 'bottom': 2, 'shoes': 9, 'outerwear': 10}
+    categories = {'top': 5, 'bottom': 2, 'outerwear': 10}
+    parent_cids = tuple(v for v in categories.values()
+                        if v != question_parent_cid)
+
+    compatible_categories = tuple(x for x in CAT_CONSTRAINT[cid])
+    # Return 2 outfits each has 3 products
+    outfits = []
+    for pid in candidate_pids:
+        # iids for this product
+        iids_sql = """SELECT id FROM image WHERE pid=%s;"""
+        quenstion_iids = [i[0] for i in fetchall(iids_sql, [pid])]
+        answer_pids = [pid]
+
+        for cid in parent_cids:
+            # Find index of typespace embedding in embedding matrix
+            # Where cid_1 is question_parent_cid and cid_2 is answer_parent_cid
+            index_typespace_sql = """SELECT index FROM typespace
+                        WHERE (cid_1=%s AND cid_2=%s)
+                            OR (cid_1=%s AND cid_2=%s);"""
+            index_typespace = fetchone(
+                index_typespace_sql,
+                [question_parent_cid, cid, cid, question_parent_cid])[0]
+
+            # same parent category products
+            iid_sql = """SELECT image.id, image.pid
+                        FROM image INNER JOIN product_category on product_category.pid = image.pid
+                        WHERE cid=%s;"""
+            iid_pid = tuple(tuple(i) for i in fetchall(iid_sql, [cid]))
+            pid_sql = """SELECT image.id, image.pid
+                        FROM image INNER JOIN product_category on product_category.pid = image.pid
+                        WHERE cid IN %s;"""
+            com_pid = tuple(
+                tuple(i) for i in fetchall(pid_sql, [compatible_categories]))
+            answer_iid_tup = set(iid_pid).intersection(com_pid)
+            answer_iid_tup = tuple(x[0] for x in answer_iid_tup)
+
+            # Use previous product choices to recommend last item
+            answer_iids = []
+            if len(answer_pids) > 1:
+                answer_sql = """SELECT id FROM image WHERE pid=%s;"""
+                answer_iids = [
+                    i[0] for i in fetchall(answer_sql, [answer_pids[-1]])
+                ]
+
+            candidates = []
+            # For each image id in question product iid
+            for qiid in quenstion_iids + answer_iids:
+                # Find embedding of this image
+                qemb_sql = """SELECT emb FROM outfit_recom_emb_%s WHERE iid=%s;"""
+                qemb = fetchone(qemb_sql, [index_typespace, qiid])[0]
+
+                aemb_sql = """SELECT pid, cube_distance(emb, %s)
+                FROM image INNER JOIN outfit_recom_emb_%s ON outfit_recom_emb_%s.iid = image.id
+                WHERE image.id IN %s ORDER BY emb <-> %s LIMIT %s;"""
+                candidate = fetchall(aemb_sql, [
+                    qemb, index_typespace, index_typespace, answer_iid_tup,
+                    qemb, k
+                ])
+                candidates.extend(candidate)
+
+            candidates = [x for x in candidates if x[0] not in outfits[-1]
+                          ] if len(outfits) > 0 else candidates
+
+            answer_pids.append(
+                sorted(candidates, key=lambda tup: tup[1])[0][0])
+        outfits.append(answer_pids)
+
+    cur.close()
+    return outfits
+
+
 def fetchone(sql, args):
     cur.execute(sql, args)
     result = cur.fetchone()
@@ -82,4 +213,3 @@ def fetchall(sql, args):
     result = cur.fetchall()
     conn.commit()
     return result
-
