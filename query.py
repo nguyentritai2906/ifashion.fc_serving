@@ -6,15 +6,15 @@ CAT_CONSTRAINT = {
     14: [19, 18, 21, 22, 24, 26, 29, 31, 30],
     15: [19, 18, 21, 22, 24, 26, 29, 31, 30],
     16: [19, 18, 21, 22, 24, 26, 29, 31, 30],
-    17: [24, 29, 26, 25, 31, 33, 12, 13, 14, 15, 16],
-    18: [24, 29, 26, 25, 31, 33, 12, 13, 14, 15, 16],
-    19: [24, 26, 23, 31, 33],
+    17: [24, 29, 26, 25, 31, 12, 13, 14, 15, 16],
+    18: [24, 29, 26, 25, 31, 12, 13, 14, 15, 16],
+    19: [24, 26, 23, 31],
     20: [26, 23, 33],
     21: [23, 26, 12, 13, 14, 15, 16],
     22: [24, 29, 31, 30, 12, 13, 14, 15, 16],
     23: [20, 19, 21, 33],
-    24: [19, 18, 21, 22, 12, 13, 14, 15, 16, 33],
-    25: [19, 18, 21, 22, 12, 13, 14, 15, 16, 33],
+    24: [19, 18, 21, 22, 12, 13, 14, 15, 16],
+    25: [19, 18, 21, 22, 12, 13, 14, 15, 16],
     26: [20, 19, 18, 33],
     27: [20, 19, 21, 18, 22, 12, 13, 14, 15, 16],
     28: [20, 19, 21, 18, 22, 12, 13, 14, 15, 16],
@@ -115,7 +115,8 @@ def generate_outfit(pid, k):
 
     # Category of product
     cid_sql = """SELECT cid FROM product_category WHERE pid=%s;"""
-    cid = fetchone(cid_sql, (pid, ))[0]
+    cid = [i[0] for i in fetchall(cid_sql, (pid, )) if i not in range(11)]
+    cid = cid[0]
     # Parent category of product
     parent_id_sql = """SELECT parent_id FROM category WHERE id=%s;"""
     question_parent_cid = fetchone(parent_id_sql, (cid, ))[0]
@@ -123,6 +124,11 @@ def generate_outfit(pid, k):
     # Same category products
     sql = """Select pid from product_category where cid = %s;"""
     search_pids = tuple(i[0] for i in fetchall(sql, [question_parent_cid]))
+    if question_parent_cid == 10 and cid != 33:
+        vest_sql = """Select pid from product_category where cid = 33;"""
+        vest_pids = tuple(i[0] for i in fetchall(vest_sql, []))
+        search_pids = tuple(x for x in search_pids if x not in vest_pids)
+
     # Find similar product ids to replace input pid
     sql = """SELECT pid FROM image_search_emb INNER JOIN image ON image_search_emb.iid = image.id
             WHERE image.pid IN %s ORDER BY emb <-> %s LIMIT %s;"""
@@ -143,7 +149,7 @@ def generate_outfit(pid, k):
         quenstion_iids = [i[0] for i in fetchall(iids_sql, [pid])]
         answer_pids = [pid]
 
-        for cid in parent_cids:
+        for cur_cid in parent_cids:
             # Find index of typespace embedding in embedding matrix
             # Where cid_1 is question_parent_cid and cid_2 is answer_parent_cid
             index_typespace_sql = """SELECT index FROM typespace
@@ -151,13 +157,14 @@ def generate_outfit(pid, k):
                             OR (cid_1=%s AND cid_2=%s);"""
             index_typespace = fetchone(
                 index_typespace_sql,
-                [question_parent_cid, cid, cid, question_parent_cid])[0]
+                [question_parent_cid, cur_cid, cur_cid, question_parent_cid
+                 ])[0]
 
             # same parent category products
             iid_sql = """SELECT image.id, image.pid
                         FROM image INNER JOIN product_category on product_category.pid = image.pid
                         WHERE cid=%s;"""
-            iid_pid = tuple(tuple(i) for i in fetchall(iid_sql, [cid]))
+            iid_pid = tuple(tuple(i) for i in fetchall(iid_sql, [cur_cid]))
             pid_sql = """SELECT image.id, image.pid
                         FROM image INNER JOIN product_category on product_category.pid = image.pid
                         WHERE cid IN %s;"""
@@ -198,6 +205,7 @@ def generate_outfit(pid, k):
         outfits.append(answer_pids)
 
     cur.close()
+    print(outfits)
     return outfits
 
 
